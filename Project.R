@@ -10,15 +10,18 @@
 
 #_________Carregamento de Dados e Pacotes----
 
-setwd('C:/Users/elisa/Estatistica/Estat/PS Estat')
-getwd()
+#setwd('C:/Users/elisa/Estatistica/Estat/PS Estat')
+#getwd()
 
-library(readr)
-library(dplyr)
-library(lubridate)
-library(ggplot2)
-library(stringr)
-library(tidyverse)
+pacman::p_load(readr, dplyr, lubridate, ggplot2, stringr, tidyverse, xtable)
+
+# library(readr)
+# library(dplyr)
+# library(lubridate)
+# library(ggplot2)
+# library(stringr)
+# library(tidyverse)
+# library(xtable)
 
 # Carregando dados
 
@@ -66,7 +69,7 @@ dados_vendas <- dados_vendas[,c(3:13,15)]
 
 dados_vendas$Category <- dados_vendas$Category %>%
   factor(levels = c("Men's Fashion", "Women's Fashion", "Kids' Fashion"),
-         labels = c("Men's Fashion", "Women's Fashion", "Kids' Fashion"))
+         labels = c("Moda Masculina", "Moda Feminina", "Moda Infantil"))
 
 # Transformar as marcas (lojas) em factor
 
@@ -109,7 +112,7 @@ sum(is.na(dados_vendas$Price)) # 10 obs. sem preco especificado
 sum(is.na(dados_vendas$Category)) # 10 obs sem especificar categoria
 which(is.na(dados_vendas$Category))
 
-vendas <- dados_vendas[!is.na(dados_vendas$Price),] # exlui na em Price
+vendas <- dados_vendas[!is.na(dados_vendas$Price),] # banco sem na em Price
 sum(is.na(vendas$Price))
 sum(is.na(vendas$Category)) # continuou com os 10 sem especeficar a categoria
 
@@ -125,8 +128,8 @@ sum(fat_Anual$faturamento)
 # Transformar Na em outra classe
 fat_Anual$Category <- as.character(fat_Anual$Category) # Reiniciar
 fat_Anual$Category[which(is.na(fat_Anual$Category))]<- "Não Especificado"
-fat_Anual$Category <- factor(fat_Anual$Category, levels = c("Men's Fashion", "Women's Fashion", "Kids' Fashion", "Não Especificado"),
-                             labels = c("Men's Fashion", "Women's Fashion", "Kids' Fashion", "Não Especificado"))
+fat_Anual$Category <- factor(fat_Anual$Category, levels = c("Moda Masculina", "Moda Feminina", "Moda Infantil", "Não Especificado"),
+                             labels = c("Moda Masculina", "Moda Feminina", "Moda Infantil", "Não Especificado"))
 
 
 levels(fat_Anual$Category)
@@ -142,13 +145,15 @@ fat_Anual <-  transform(fat_Anual,freq = paste(fat_Anual$freq, "%", sep = ""),
 
 # grafico 
 
-graph_fat <- ggplot(fat_Anual,aes(x = Category, y = faturamento, label = label))+
+graph_fat <- ggplot(fat_Anual,aes(x = fct_reorder(Category , faturamento, .desc=T),
+                                  y = faturamento, label = label))+
   geom_bar(stat = "identity", fill = '#A11D21')+
+  scale_y_continuous(breaks = seq(0,18000,1500)) +
   geom_text(
     position = position_dodge(width = .9),
     vjust= -0.5,
     size = 3)+
-  labs(x = "Categorias", y = "Faturamento") +
+  labs(x = "Categorias", y = "Faturamento (reais)") +
   theme_estat()
 
 ggsave("Grafico_Colunas_Fat_Anual.pdf", graph_fat, width = 158, height = 93, units = "mm")
@@ -170,49 +175,77 @@ fat_mes <- rename(fat_mes, "Categoria"="Category")
 
 graph_fat_mes <- ggplot(fat_mes)+
   aes(x = Mes_Venda, y = Price, group = Categoria, colour = Categoria)+
+  scale_y_continuous(breaks = seq(0,4000,500)) +
   geom_line(size = 1)+
   geom_point(size = 2)+
   scale_colour_manual(name="Categoria")+
-  labs(x="Mês", y="Faturamento")+
+  labs(x="Mês", y="Faturamento (reais)")+
   theme_estat()
 
 ggsave ("Garfico_Linhas_Fat_Mes.pdf", graph_fat_mes, width = 158, height = 93, 
         units = "mm")
 
 
-#_________1) Variacao de Preco por Marca----
+#_________2) Variacao de Preco por Marca----
 
 # Analisar frequencia de cada marca
 
-summary(dados_vendas$Brand)
+summary(dados_vendas$Brand) # freq de cada marca no banco completo
+summary(vendas$Brand) # freq de cada marca no banco sem na em Price
+                      # 10 nao especificaram marca
 
+1000/5 # Proporcao esperada para cada marca
+
+which(is.na(vendas$Brand)) # Quais que possuem na em marca
+dados.marca <- vendas[!is.na(vendas$Brand),]
 
 # Box-plot e teste anova 
 
-a<-vendas%>%
+quadro_resumo_marca <- dados.marca%>%
   group_by(Brand)%>%
-  summarise(media = mean(Price), v = (sd(Price))^2)
+  summarise(Média = mean(Price), 
+            Variância = (sd(Price))^2,
+            Mínimo = min(Price),
+            `1° Quartil` = round(quantile(Price , probs = .25),2),
+            Mediana = round(quantile(Price , probs = .5),2),
+            `3° Quartil` = round(quantile(Price , probs = .75),2),
+            Maximo = max(Price)) %>% t() %>% as.data.frame() %>%
+  mutate(V1 = str_replace(V1,"\\.",","),V2 = str_replace(V2,"\\.",","),
+         V3 = str_replace(V3,"\\.",","),V4 = str_replace(V4,"\\.",","),
+         V5 = str_replace(V5,"\\.",","))
 
-boxplot(Price~Brand, vendas)
-
-
-
-
-
-b<-aov(Price~as.factor(Brand), data=vendas)
-summary(b)
-TukeyHSD(b) # Comparacao entre categorias #Para P-Valor maior que alpha, medias iguais
-
-lm_brand <- lm(Price~as.factor(Brand), data=vendas)
-summary(lm_brand)
+xtable::xtable(quadro_resumo_marca)
 
 
+box_plot_preco_marca <- ggplot(dados.marca, aes(x = Brand, y = Price)) +
+  geom_boxplot(fill = c("#A11D21"), width = 0.5) +
+  scale_y_continuous(breaks = seq(0,100,10)) +
+  stat_summary(
+    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white") +
+  labs(x = "Marcas", y = "Preço (reais)") +
+  theme_estat() # Nao parece ter grande variacao de preco entre as marcas
 
-shapiro.test(vendas$Price)
-ggplot(vendas)+
-  aes(x=Price)+
-  geom_histogram(colour = "white ", fill = "#A11D21", binwidth = 2)+
-  theme_estat()
+ggsave("box_plot_preco_marca.pdf", width = 158, height = 93, units = "mm")
+
+
+# teste de hipotese -> h0 = nao ha diferenca entre os precos medios para diferentes marcas
+#                      ha = ha diferenca entre os precos medios para diferentes marcas
+
+
+anova_marca<-aov(Price~Brand, data=dados.marca)
+summary(anova_marca) # Ao nivel de significancia, 0.05, nao rejeita a hipotese nula
+
+
+#_________3) Relacao entre Categorias (feminino e masculino) e Marca----
+
+
+
+
+
+
+
+
+
 
 
 
