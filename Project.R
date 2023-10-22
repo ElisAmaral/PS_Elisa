@@ -228,7 +228,7 @@ box_plot_preco_marca <- ggplot(dados.marca, aes(x = Brand, y = Price)) +
 ggsave("box_plot_preco_marca.pdf", width = 158, height = 93, units = "mm")
 
 
-# teste de hipotese -> h0 = nao ha diferenca entre os precos medios para diferentes marcas
+# teste de hipotese -> h0 = Os precos medios para diferentes marcas sao iguais
 #                      ha = ha diferenca entre os precos medios para diferentes marcas
 
 
