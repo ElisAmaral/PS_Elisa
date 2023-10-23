@@ -148,7 +148,7 @@ fat_Anual <-  transform(fat_Anual,freq = paste(fat_Anual$freq, "%", sep = ""),
 graph_fat <- ggplot(fat_Anual,aes(x = fct_reorder(Category , faturamento, .desc=T),
                                   y = faturamento, label = label))+
   geom_bar(stat = "identity", fill = '#A11D21')+
-  scale_y_continuous(breaks = seq(0,18000,1500)) +
+  scale_y_continuous(breaks = seq(0,18000,2500)) +
   geom_text(
     position = position_dodge(width = .9),
     vjust= -0.5,
@@ -203,8 +203,9 @@ dados.marca <- vendas[!is.na(vendas$Brand),]
 
 quadro_resumo_marca <- dados.marca%>%
   group_by(Brand)%>%
-  summarise(Média = mean(Price), 
-            Variância = (sd(Price))^2,
+  summarise(Média = round(mean(Price), 2), 
+            Variância = round((sd(Price))^2,2),
+            `Desvio Padrão` = round(sd(Price), 2),
             Mínimo = min(Price),
             `1° Quartil` = round(quantile(Price , probs = .25),2),
             Mediana = round(quantile(Price , probs = .5),2),
