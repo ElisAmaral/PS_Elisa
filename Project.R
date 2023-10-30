@@ -25,7 +25,7 @@ pacman::p_load(readr, dplyr, lubridate, ggplot2, stringr, tidyverse, xtable)
 
 # Carregando dados
 
-dados_dev <- read_csv('devolução.csv', locale = locale(encoding = "UTF-8"))
+dados_dev <- read_csv('devolução_atualizado.csv', locale = locale(encoding = "UTF-8"))
 dados_vendas <- read_csv('vendas.csv', locale = locale(encoding = "UTF-8"))
 
 #_________Funcoes da Estat----
@@ -237,16 +237,111 @@ anova_marca<-aov(Price~Brand, data=dados.marca)
 summary(anova_marca) # Ao nivel de significancia, 0.05, nao rejeita a hipotese nula
 
 
-#_________3) Relacao entre Categorias (feminino e masculino) e Marca----
+#_________3) Relacao entre Categorias (feminino e masculino) e Cor----
+
+unique(dados_vendas$Color) # Sao 6 cores
+
+moda_cor <- dados_vendas %>%
+  group_by(Category , Color) %>%
+  summarise (freq = n())# freq absoluta de cada cor segundo as categorias
+
+# Nomear os NA's em cor
+moda_cor$Color[which(is.na(moda_cor$Color))]<- "Não Especificado"
+unique(moda_cor$Color)
+
+# Transformar cor em fator
+moda_cor$Color <- factor(moda_cor$Color, levels = 
+                           c("Black","Yellow","White","Blue","Green","Red",
+                             "Não Especificado"),
+                         labels = c("Preto","Amarelo","Branco","Azul","Verde",
+                                    "Vermelho","Não Especificado"))
+levels(moda_cor$Color)
+
+moda_cor <- moda_cor[moda_cor$Category != "Moda Infantil",] %>%
+  na.omit()%>%
+  mutate (freq_relativa = round(freq/sum(freq)*100,2)) # Considerando apenas
+                                                       # fem e masc, e removendo 
+                                                       # na's
+
+sum(moda_cor[1:7,4]) # moda masculina - freq total 100%
+
+porcentagens <- str_c(moda_cor$freq_relativa , "%") %>% str_replace ("\\.",",")
+label <- str_squish(str_c(moda_cor$freq , " (", porcentagens ,")"))
+
+# Proporcao cor para cada categoria
+
+grafico_coluna_moda_cor <- ggplot(moda_cor) + 
+  geom_bar(aes(x = fct_reorder(Color, freq, .desc=F), y = freq, 
+               group = Category, fill = Category), 
+           stat = "identity", position = "dodge") +
+  labs( x = "Cores",y = "Frequência", fill = "Categorias")+
+  ylim(0,75)+
+  geom_text(aes(x = Color, y = freq, label = label, 
+                group = Category), 
+            position =  position_dodge(width = 1), size = 3,
+            vjust = 0.4, hjust = 0, angle = 0) + 
+  coord_flip() +
+  theme_estat()
+
+
+ggsave("grafico_coluna_moda_cor.pdf", width = 158, height = 93, units = "mm")
+
+
+# Proporcao fem e masc para cada cor
+
+cat_cor <- dados_vendas[dados_vendas$Category != "Moda Infantil",]
+# cat_cor <- filter(dados_vendas, (Category!="Moda Infantil")) # ja exclui na's
+unique(cat_cor$Category)
+sum(is.na(cat_cor$Category))
+
+cat_cor <- cat_cor[!is.na(cat_cor$Category),] #Retirar na's
+sum(is.na(cat_cor$Category))
+unique(cat_cor$Category)
+
+# Retirar os NA's em cor
+cat_cor<- cat_cor[!is.na(cat_cor$Color),]
+sum(is.na(cat_cor$Color))
+
+cat_cor$Color <- factor(cat_cor$Color, levels = 
+                           c("Black","Yellow","White","Blue","Green","Red"),
+                         labels = c("Preto","Amarelo","Branco","Azul","Verde",
+                                    "Vermelho"))
+levels(cat_cor$Color)
 
 
 
+################### TESTES: grafico de barras empilhadas #######################
+
+#ggplot(cat_cor,aes(x = Color, fill = Category))+
+#  geom_bar(position = "fill")+
+#  scale_fill_manual(name="Categoria", values=c("#A11D21", "#003366"))+
+#  labs( x = "Cores",y = "Porcentagem", fill = "Categoria")+
+#  scale_y_continuous(labels = scales :: percent_format())+
+#  theme_bw()+
+#  theme(axis.title.y = element_text(colour="black", size=12),
+#        axis.title.x = element_text(colour="black", size=12),
+#        axis.title = element_text(colour="black", size=9.5),
+#        axis.line = element_line(colour="black"),
+#        panel.border = element_blank())+
+#  theme(axis.text.x = element_text(colour="black",size = 9.5, angle = -20))+
+#  theme(legend.position="top")
+  
+
+#ggplot(cat_cor,aes(x = str_wrap(Color, width = 4), fill = Category))+
+#  geom_bar(position = "fill")+
+#  labs( x = "Cores",y = "Porcentagem", fill = "Categoria")+
+#  scale_y_continuous(labels = scales :: percent_format())+
+#  theme_estat()
+###############################################################################
+
+grafico_col_emp_moda_cor <- ggplot(cat_cor,aes(x = Color, fill = Category))+
+  geom_bar(position = "fill")+
+  labs( x = "Cores",y = "Porcentagem", fill = "Categoria")+
+  scale_y_continuous(labels = scales :: percent_format())+
+  theme_estat()
+
+ggsave("grafico_col_emp_moda_cor.pdf", width = 158, height = 93, units = "mm")
 
 
-
-
-
-
-
-
+#_________4) Relacao entre Categorias (feminino e masculino) e Cor----
 
