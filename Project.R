@@ -13,7 +13,9 @@
 #setwd('C:/Users/elisa/Estatistica/Estat/PS Estat')
 #getwd()
 
-pacman::p_load(readr, dplyr, lubridate, ggplot2, stringr, tidyverse, xtable)
+pacman::p_load(readr, dplyr, lubridate, ggplot2, stringr, tidyverse, xtable,
+               nortest, lmtest)
+
 
 # library(readr)
 # library(dplyr)
@@ -22,6 +24,8 @@ pacman::p_load(readr, dplyr, lubridate, ggplot2, stringr, tidyverse, xtable)
 # library(stringr)
 # library(tidyverse)
 # library(xtable)
+# library(nortest)
+# library(lmtest)
 
 # Carregando dados
 
@@ -241,29 +245,34 @@ summary(anova_marca) # Ao nivel de significancia, 0.05, nao rejeita a hipotese n
 
 unique(dados_vendas$Color) # Sao 6 cores
 
-moda_cor <- dados_vendas %>%
+dados3 <- dados_vendas[!is.na(dados_vendas$`Product ID`),] # Retirando NA's de 
+# product ID
+
+dados.moda_cor <- dados3[dados3$Category != "Moda Infantil",] # filtrando as 
+# categorias de 
+# interesse
+
+dados.moda_cor<- dados.moda_cor[!is.na(dados.moda_cor$Color),]# Retirar na em cor
+sum(is.na(dados.moda_cor$Category))
+
+
+moda_cor <- dados.moda_cor %>%
   group_by(Category , Color) %>%
   summarise (freq = n())# freq absoluta de cada cor segundo as categorias
 
-# Nomear os NA's em cor
-moda_cor$Color[which(is.na(moda_cor$Color))]<- "Não Especificado"
 unique(moda_cor$Color)
 
 # Transformar cor em fator
 moda_cor$Color <- factor(moda_cor$Color, levels = 
-                           c("Black","Yellow","White","Blue","Green","Red",
-                             "Não Especificado"),
+                           c("Black","Yellow","White","Blue","Green","Red"),
                          labels = c("Preto","Amarelo","Branco","Azul","Verde",
-                                    "Vermelho","Não Especificado"))
+                                    "Vermelho"))
 levels(moda_cor$Color)
 
-moda_cor <- moda_cor[moda_cor$Category != "Moda Infantil",] %>%
-  na.omit()%>%
-  mutate (freq_relativa = round(freq/sum(freq)*100,2)) # Considerando apenas
-                                                       # fem e masc, e removendo 
-                                                       # na's
+# Calcular freq relativa
+moda_cor <- mutate(moda_cor, freq_relativa = round(freq/sum(freq)*100,2))
 
-sum(moda_cor[1:7,4]) # moda masculina - freq total 100%
+sum(moda_cor[1:6,4]) # moda masculina - freq total 100%
 
 porcentagens <- str_c(moda_cor$freq_relativa , "%") %>% str_replace ("\\.",",")
 label <- str_squish(str_c(moda_cor$freq , " (", porcentagens ,")"))
@@ -285,28 +294,6 @@ grafico_coluna_moda_cor <- ggplot(moda_cor) +
 
 
 ggsave("grafico_coluna_moda_cor.pdf", width = 158, height = 93, units = "mm")
-
-
-# Proporcao fem e masc para cada cor
-
-cat_cor <- dados_vendas[dados_vendas$Category != "Moda Infantil",]
-# cat_cor <- filter(dados_vendas, (Category!="Moda Infantil")) # ja exclui na's
-unique(cat_cor$Category)
-sum(is.na(cat_cor$Category))
-
-cat_cor <- cat_cor[!is.na(cat_cor$Category),] #Retirar na's
-sum(is.na(cat_cor$Category))
-unique(cat_cor$Category)
-
-# Retirar os NA's em cor
-cat_cor<- cat_cor[!is.na(cat_cor$Color),]
-sum(is.na(cat_cor$Color))
-
-cat_cor$Color <- factor(cat_cor$Color, levels = 
-                           c("Black","Yellow","White","Blue","Green","Red"),
-                         labels = c("Preto","Amarelo","Branco","Azul","Verde",
-                                    "Vermelho"))
-levels(cat_cor$Color)
 
 
 
@@ -343,5 +330,395 @@ grafico_col_emp_moda_cor <- ggplot(cat_cor,aes(x = Color, fill = Category))+
 ggsave("grafico_col_emp_moda_cor.pdf", width = 158, height = 93, units = "mm")
 
 
-#_________4) Relacao entre Categorias (feminino e masculino) e Cor----
+#_________4) Relacao entre Preço e Avaliacao----
+
+
+# Para a analise descritiva sera usado o banco dados_vendas
+
+# 1) Analise exploratoria das variaveis
+
+  # Variavel: Preco(Price)
+
+# Usar banco vendas, que nao tem na's em Price
+
+# Box-Plot da variavel Preco:
+
+box_plot_Preco <- ggplot(vendas) +
+  aes(x=factor(""), y = Price) +
+  geom_boxplot(fill = c("#A11D21"), width = 0.5) +
+  stat_summary(
+    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white") +
+  labs(x = "", y = "Preço (reais)") +
+  theme_estat()
+
+ggsave("box_plot_Preco.pdf", width = 158, height = 93, units = "mm")
+
+
+# Quadro resumo da variavel Preco
+
+quadro_preco <- matrix(nrow = 8, ncol = 2)
+colnames(quadro_preco) <- c("Estatística", "Valor")
+
+quadro_preco[,1]<- c("Média", "Variância", "Desvio Padrão", "Mínimo", "1° Quartil",
+              "Mediana", "3° Quartil", "Máximo")
+
+quadro_preco[1,2] <- round(mean(vendas$Price), 2)
+quadro_preco[2,2] <- round(sd(vendas$Price)^2, 2)
+quadro_preco[3,2] <- round(sd(vendas$Price), 2)
+quadro_preco[4,2] <- min(vendas$Price)
+quadro_preco[5,2] <- round(quantile(vendas$Price , probs = .25),2)
+quadro_preco[6,2] <- round(quantile(vendas$Price , probs = .5),2)
+quadro_preco[7,2] <- round(quantile(vendas$Price , probs = .75),2)
+quadro_preco[8,2] <- max(vendas$Price)
+
+
+xtable::xtable(quadro_preco)
+
+
+# Teste de Normalidade
+
+hist_Preco <- ggplot(vendas) +
+  aes(x = Price) +
+  geom_histogram(colour = "white ", fill = "#A11D21", binwidth = 7) +
+  labs(x = "Preço (reais)", y = " Frequência Absoluta ") +
+  theme_estat()
+
+ggsave("hist_Preco.pdf", width = 158, height = 93, units = "mm")
+
+# teste de hipotese Shapiro:
+  # H0: Segue normal
+  # Ha: Nao segue normal
+
+shapiro.test(vendas$Price)
+
+# nao rejeita H0, pvalor = 0.187, acima do nivel de significancia 0.05
+
+
+# teste de hipotese Shapiro:
+  # H0: Segue normal
+  # Ha: Nao segue normal
+
+lillie.test(vendas$Price)
+# nao rejeita H0, pvalor = 0.158, acima do nivel de significancia 0.05
+
+
+
+  # Variavel Resposta: Avaliacao (Rating)
+
+rat <- dados_vendas[!is.na(dados_vendas$Rating),] # Banco sem na's em Rating
+sum(is.na(rat$Rating)) # nao ha na's em rat
+
+box_plot_Aval <- ggplot(rat) +
+  aes(x=factor(""), y = Rating) +
+  geom_boxplot(fill = c("#A11D21"), width = 0.5) +
+  stat_summary(
+    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white") +
+  labs(x = "", y = "Avaliação") +
+  theme_estat()
+
+ggsave("box_plot_Aval.pdf", width = 158, height = 93, units = "mm")
+
+
+aval <- matrix(nrow = 8, ncol = 2)
+colnames(aval) <- c("Estatística", "Valor")
+
+aval[,1]<- c("Média", "Variância", "Desvio Padrão", "Mínimo", "1° Quartil",
+              "Mediana", "3° Quartil", "Máximo")
+
+aval[1,2] <- round(mean(rat$Rating), 2)
+aval[2,2] <- round(sd(rat$Rating)^2, 2)
+aval[3,2] <- round(sd(rat$Rating), 2)
+aval[4,2] <- round(min(rat$Rating),2)
+aval[5,2] <- round(quantile(rat$Rating , probs = .25),2)
+aval[6,2] <- round(quantile(rat$Rating , probs = .5),2)
+aval[7,2] <- round(quantile(rat$Rating , probs = .75),2)
+aval[8,2] <- round(max(rat$Rating), 2)
+
+xtable::xtable(aval)
+
+hist_Rating <- ggplot(rat) +
+  aes(x = Rating) +
+  geom_histogram(colour = "white", fill = "#A11D21", binwidth = 0.25) +
+  labs(x = "Avaliação", y = " Frequência Absoluta ") +
+  theme_estat()
+
+ggsave("hist_Rating.pdf", width = 158, height = 93, units = "mm")
+
+# teste de hipotese Shapiro:
+# H0: Segue normal
+# Ha: Nao segue normal
+
+shapiro.test(rat$Rating)
+# nao rejeita H0, pvalor = 0.915, acima do nivel de significancia 0.05
+
+
+# teste de hipotese Shapiro:
+# H0: Segue normal
+# Ha: Nao segue normal
+
+lillie.test(rat$Rating)
+# nao rejeita H0, pvalor = 0.365, acima do nivel de significancia 0.05
+
+
+# Criar banco sem na's em Price e em Rating
+
+sum(is.na(vendas$Price)) # nao ha na em Price
+sum(is.na(vendas$Rating))# ha 10 na em rating
+
+  # Usando o banco vendas pois nao ha na em Price
+
+dados.reg <- vendas[!is.na(vendas$Rating),]
+sum(is.na(dados.reg$Rating)) # nao ha na em Rating nem em Price
+
+
+  # Usaremos esse banco, dados.reg, para o calculo da correlacao e para
+  # a elaboracao da regressao
+
+# Analise bivariada - Correlacao entre as variaveis 
+
+  # Diagrama de dispercao
+diagram_prec_rat <- ggplot(dados.reg) +
+  aes(y = Rating , x = Price) +
+  geom_point( colour = "#A11D21", size = 2) +
+  labs(
+    x = "Preço (reais)",
+    y = "Avaliação") +
+  theme_estat()
+
+ggsave("diagram_prec_rat.pdf", width = 158, height = 93, units = "mm")
+
+cor(dados.reg$Rating, dados.reg$Price, method = "pearson")
+# Correlação alta - 0.9138
+
+
+# A ideia eh testar a influencia do preco na avaliacao!
+
+
+modelo <- lm(data = dados.reg, formula = Rating~Price)
+summary(modelo) # Pelo teste t, as estimativas sao diferentes de 0
+# a covariavel rating explica 83,5% da variacao da variavel preco
+# eh um valor alto
+
+
+#Avaliando a qualidade do ajuste da reta de regressao
+
+ggplot(dados.reg, aes(y=Rating, x=Price)) + 
+  geom_point(colour = "#A11D21", size = 2) +
+  geom_smooth(formula = y~x, method = lm, se = FALSE, colour = "black")+
+  labs(y = "Avaliação", x = "Preço (em reais)") +
+  theme_estat()
+
+
+# Analise dos residuos
+
+par(mfrow = c(2,3))
+plot(modelo, which = c(1:5), pch = 20)
+
+
+# Grafico residuo X valores ajustados (Homocedasticidade)
+
+graf_resid_fit <- ggplot(modelo, aes(x=.fitted, y=.resid))+
+  geom_point(colour = "#A11D21", size = 2) +
+  geom_hline(yintercept = 0) +
+  labs(x = "Valores Ajustados", y = "Resíduos") +
+  theme_estat()
+
+ggsave("graf_resid_fit.pdf", width = 158, height = 93, units = "mm")
+
+
+# Grafico Normalidade dos Residuos
+
+graf_normal_QQ <- ggplot(modelo, 
+                         aes(sample = (.resid - mean(.resid))/
+                               sd(.resid)))+
+  stat_qq(colour = "#A11D21") +
+  stat_qq_line() +
+  labs(x= "Quantis Teóricos",
+       y = "Resíduos Estudentizados")+
+  theme_estat()
+
+  # teste de normalidade dos residuos
+shapiro.test(modelo$residuals)
+# nao rejeita H0, p-valor = 0.296, superior ao nivel de significancia
+
+ggsave("graf_normal_QQ.pdf", width = 158, height = 93, units = "mm")
+
+
+# Grafico dos residuos (independendcia)
+
+plot(modelo$residuals) # Independencia -> substitui scale-location
+
+grafico_resid <- ggplot(modelo, aes(x=1:length(.resid), y=.resid))+
+  geom_point(colour = "#A11D21", size = 2) +
+  labs(x = "Ordem de Observação", y = "Resíduos") +
+  theme_estat()
+
+ggsave("grafico_resid.pdf", width = 158, height = 93, units = "mm")
+
+
+# Teste de homocedasticidade - Brauch-Pagan
+  # Hipoteses
+  # H0: a var dos erros sao iguais
+  # Ha: a var dos erros sao diferentes
+
+bptest(modelo) # nao rej H0, p-valor superior ao nivel de significancia
+
+
+
+
+
+#_________5) Frequência de Cada Tipo de Devolucao por Marca----
+
+sum(is.na(dados_vendas$`Unique ID`)) # nao ha na em Unique ID
+
+unique(dados_dev$`Motivo devolução`) # Sao 3 tipos de devolucao
+
+table(dados_dev$`Motivo devolução`)
+table(dados_vendas$`Motivo devolução`)
+
+devol <- merge(dados_vendas, dados_dev, by = "Unique ID")
+
+
+# 3 observacoes sem marca registrada
+devol <- devol[!is.na(devol$Brand),]
+
+dev_marca <- devol %>%
+  group_by(Brand, `Motivo devolução.y`)%>%
+  summarise(freq = n())%>%
+  mutate(freq_rel = round(freq/sum(freq)*100,2))
+
+sum(dev_marca[dev_marca$Brand=="H&M",]$freq_rel) # soma das % igual a 100
+
+
+porcentagens <- str_c(dev_marca$freq_rel, "%") %>% str_replace("\\.",",")
+label <- str_squish(str_c(dev_marca$freq , " (", porcentagens ,")"))
+
+# Proporcao cor para cada categoria
+
+grafico_coluna_dev_marca <- ggplot(dev_marca) + 
+  geom_bar(aes(x = Brand, y = freq, group = `Motivo devolução.y`, 
+               fill = `Motivo devolução.y`), 
+           stat = "identity", position = "dodge") +
+  labs( x = "Marca", y = "Frequência", fill = "Motivo de devolução")+
+  ylim(0,40) +
+  geom_text(aes(x = Brand, y = freq, label = label, 
+                group = `Motivo devolução.y`), 
+            position =  position_dodge(width = 1), size = 3,
+            vjust = 0.4, hjust = -0.1, angle = 0) + 
+  coord_flip() +
+  theme_estat()
+
+
+ggsave("grafico_coluna_dev_marca.pdf", width = 158, height = 93, units = "mm")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###### analise 3 #####
+
+unique(dados_vendas$Color) # Sao 6 cores
+
+dados3 <- dados_vendas[!is.na(dados_vendas$`Product ID`),] # Retirando NA's de 
+                                                           # product ID
+
+dados.moda_cor <- dados3[dados3$Category != "Moda Infantil",] # filtrando as 
+                                                              # categorias de 
+                                                              # interesse
+
+# filter(dados3, (Category!="Moda Infantil")) # ja exclui na's
+
+dados.moda_cor<- dados.moda_cor[!is.na(dados.moda_cor$Color),]# Retirar na em cor
+sum(is.na(dados.moda_cor$Category))
+
+
+
+
+
+moda_cor <- dados.moda_cor %>%
+  group_by(Category , Color) %>%
+  summarise (freq = n())# freq absoluta de cada cor segundo as categorias
+
+unique(moda_cor$Color)
+
+# Transformar cor em fator
+moda_cor$Color <- factor(moda_cor$Color, levels = 
+                           c("Black","Yellow","White","Blue","Green","Red"),
+                         labels = c("Preto","Amarelo","Branco","Azul","Verde",
+                                    "Vermelho"))
+levels(moda_cor$Color)
+
+# Calcular freq relativa
+moda_cor <- mutate(moda_cor, freq_relativa = round(freq/sum(freq)*100,2))
+
+sum(moda_cor[1:6,4]) # moda masculina - freq total 100%
+
+porcentagens <- str_c(moda_cor$freq_relativa , "%") %>% str_replace ("\\.",",")
+label <- str_squish(str_c(moda_cor$freq , " (", porcentagens ,")"))
+
+# Proporcao cor para cada categoria
+
+grafico_coluna_moda_cor <- ggplot(moda_cor) + 
+  geom_bar(aes(x = fct_reorder(Color, freq, .desc=F), y = freq, 
+               group = Category, fill = Category), 
+           stat = "identity", position = "dodge") +
+  labs( x = "Cores",y = "Frequência", fill = "Categorias")+
+  ylim(0,75)+
+  geom_text(aes(x = Color, y = freq, label = label, 
+                group = Category), 
+            position =  position_dodge(width = 1), size = 3,
+            vjust = 0.4, hjust = 0, angle = 0) + 
+  coord_flip() +
+  theme_estat()
+
+
+ggsave("grafico_coluna_moda_cor.pdf", width = 158, height = 93, units = "mm")
+
+
+
+
+
+
+
 
