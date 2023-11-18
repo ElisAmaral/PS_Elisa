@@ -593,7 +593,7 @@ sum(dev_marca[dev_marca$Brand=="H&M",]$freq_rel) # soma das % igual a 100
 porcentagens <- str_c(dev_marca$freq_rel, "%") %>% str_replace("\\.",",")
 label <- str_squish(str_c(dev_marca$freq , " (", porcentagens ,")"))
 
-# Proporcao cor para cada categoria
+# Proporcao tipo de dev para cada marca
 
 grafico_coluna_dev_marca <- ggplot(dev_marca) + 
   geom_bar(aes(x = Brand, y = freq, group = `Motivo devolução.y`, 
@@ -613,26 +613,57 @@ ggsave("grafico_coluna_dev_marca.pdf", width = 158, height = 93, units = "mm")
 
 
 
+#_________6) Avaliacao Media por Marca----
+
+# Verificar se ha na nas variaveis de interesse
+sum(is.na(dados_vendas$Rating)) #ha 10 na em rating
+sum(is.na(dados_vendas$Brand)) # ha 10 na em marca
+sum(is.na(dados_vendas$`Product ID`)) # ha 10 na em produto ID
+
+# Verificar se ha alguma obs com na em comum entre as variaveis
+which(is.na(dados_vendas$Rating))
+which(is.na(dados_vendas$Brand))
+which(is.na(dados_vendas$`Product ID`))
+
+# obs 928 tem na em rating e em brand
+
+# Retirar os na's
+aval_marca <- dados_vendas[!is.na(dados_vendas$Rating),]
+aval_marca <- aval_marca[!is.na(aval_marca$Brand),]
+aval_marca <- aval_marca[!is.na(aval_marca$`Product ID`),]
+
+# Dados com a avaliacao media por marca
+media.aval_marca <- aval_marca %>%
+  group_by(Brand)%>%
+  summarise(aval_media = round(mean(Rating),2))
+
+# grafico 
+graf_aval_marcas <- ggplot(media.aval_marca, aes(x = reorder(Brand,aval_media,.desc = T),
+                     y = aval_media, label = aval_media))+
+  geom_bar(stat = "identity", fill = '#A11D21')+
+  ylim(0,3) +
+  geom_text(
+    position = position_dodge(width = .9),
+    vjust= -0.5,
+    size = 3)+
+  labs(x = "Marcas", y = "Avaliação") +
+  theme_estat()
 
 
+ggsave("graf_aval_marcas.pdf", width = 158, height = 93, units = "mm")
 
 
+# Box-plot para comparar a avaliacao de cada marca
 
+box_plot_aval_marca <- ggplot(aval_marca, aes(x = Brand, y = Rating)) +
+  geom_boxplot(fill = c("#A11D21"), width = 0.5) +
+  scale_y_continuous(breaks = seq(0,5,1)) +
+  stat_summary(
+    fun = "mean", geom = "point", shape = 23, size = 3, fill = "white") +
+  labs(x = "Marcas", y = "Rating") +
+  theme_estat() # Nao parece ter grande variacao de preco entre as marcas
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ggsave("box_plot_aval_marca.pdf", width = 158, height = 93, units = "mm")
 
 
 
