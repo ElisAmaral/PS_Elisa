@@ -565,8 +565,6 @@ bptest(modelo) # nao rej H0, p-valor superior ao nivel de significancia
 
 
 
-
-
 #_________5) Frequência de Cada Tipo de Devolucao por Marca----
 
 sum(is.na(dados_vendas$`Unique ID`)) # nao ha na em Unique ID
@@ -595,12 +593,14 @@ label <- str_squish(str_c(dev_marca$freq , " (", porcentagens ,")"))
 
 # Proporcao tipo de dev para cada marca
 
+
+
 grafico_coluna_dev_marca <- ggplot(dev_marca) + 
   geom_bar(aes(x = Brand, y = freq, group = `Motivo devolução.y`, 
                fill = `Motivo devolução.y`), 
            stat = "identity", position = "dodge") +
   labs( x = "Marca", y = "Frequência", fill = "Motivo de devolução")+
-  ylim(0,40) +
+  ylim(0,45) +
   geom_text(aes(x = Brand, y = freq, label = label, 
                 group = `Motivo devolução.y`), 
             position =  position_dodge(width = 1), size = 3,
@@ -664,92 +664,4 @@ box_plot_aval_marca <- ggplot(aval_marca, aes(x = Brand, y = Rating)) +
   theme_estat() # Nao parece ter grande variacao de preco entre as marcas
 
 ggsave("box_plot_aval_marca.pdf", width = 158, height = 93, units = "mm")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-###### analise 3 #####
-
-unique(dados_vendas$Color) # Sao 6 cores
-
-dados3 <- dados_vendas[!is.na(dados_vendas$`Product ID`),] # Retirando NA's de 
-                                                           # product ID
-
-dados.moda_cor <- dados3[dados3$Category != "Moda Infantil",] # filtrando as 
-                                                              # categorias de 
-                                                              # interesse
-
-# filter(dados3, (Category!="Moda Infantil")) # ja exclui na's
-
-dados.moda_cor<- dados.moda_cor[!is.na(dados.moda_cor$Color),]# Retirar na em cor
-sum(is.na(dados.moda_cor$Category))
-
-
-
-
-
-moda_cor <- dados.moda_cor %>%
-  group_by(Category , Color) %>%
-  summarise (freq = n())# freq absoluta de cada cor segundo as categorias
-
-unique(moda_cor$Color)
-
-# Transformar cor em fator
-moda_cor$Color <- factor(moda_cor$Color, levels = 
-                           c("Black","Yellow","White","Blue","Green","Red"),
-                         labels = c("Preto","Amarelo","Branco","Azul","Verde",
-                                    "Vermelho"))
-levels(moda_cor$Color)
-
-# Calcular freq relativa
-moda_cor <- mutate(moda_cor, freq_relativa = round(freq/sum(freq)*100,2))
-
-sum(moda_cor[1:6,4]) # moda masculina - freq total 100%
-
-porcentagens <- str_c(moda_cor$freq_relativa , "%") %>% str_replace ("\\.",",")
-label <- str_squish(str_c(moda_cor$freq , " (", porcentagens ,")"))
-
-# Proporcao cor para cada categoria
-
-grafico_coluna_moda_cor <- ggplot(moda_cor) + 
-  geom_bar(aes(x = fct_reorder(Color, freq, .desc=F), y = freq, 
-               group = Category, fill = Category), 
-           stat = "identity", position = "dodge") +
-  labs( x = "Cores",y = "Frequência", fill = "Categorias")+
-  ylim(0,75)+
-  geom_text(aes(x = Color, y = freq, label = label, 
-                group = Category), 
-            position =  position_dodge(width = 1), size = 3,
-            vjust = 0.4, hjust = 0, angle = 0) + 
-  coord_flip() +
-  theme_estat()
-
-
-ggsave("grafico_coluna_moda_cor.pdf", width = 158, height = 93, units = "mm")
-
-
-
-
-
-
-
 
