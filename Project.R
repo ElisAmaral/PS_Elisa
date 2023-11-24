@@ -297,39 +297,6 @@ ggsave("grafico_coluna_moda_cor.pdf", width = 158, height = 93, units = "mm")
 
 
 
-################### TESTES: grafico de barras empilhadas #######################
-
-#ggplot(cat_cor,aes(x = Color, fill = Category))+
-#  geom_bar(position = "fill")+
-#  scale_fill_manual(name="Categoria", values=c("#A11D21", "#003366"))+
-#  labs( x = "Cores",y = "Porcentagem", fill = "Categoria")+
-#  scale_y_continuous(labels = scales :: percent_format())+
-#  theme_bw()+
-#  theme(axis.title.y = element_text(colour="black", size=12),
-#        axis.title.x = element_text(colour="black", size=12),
-#        axis.title = element_text(colour="black", size=9.5),
-#        axis.line = element_line(colour="black"),
-#        panel.border = element_blank())+
-#  theme(axis.text.x = element_text(colour="black",size = 9.5, angle = -20))+
-#  theme(legend.position="top")
-  
-
-#ggplot(cat_cor,aes(x = str_wrap(Color, width = 4), fill = Category))+
-#  geom_bar(position = "fill")+
-#  labs( x = "Cores",y = "Porcentagem", fill = "Categoria")+
-#  scale_y_continuous(labels = scales :: percent_format())+
-#  theme_estat()
-###############################################################################
-
-grafico_col_emp_moda_cor <- ggplot(cat_cor,aes(x = Color, fill = Category))+
-  geom_bar(position = "fill")+
-  labs( x = "Cores",y = "Porcentagem", fill = "Categoria")+
-  scale_y_continuous(labels = scales :: percent_format())+
-  theme_estat()
-
-ggsave("grafico_col_emp_moda_cor.pdf", width = 158, height = 93, units = "mm")
-
-
 #_________4) Relacao entre Preço e Avaliacao----
 
 
